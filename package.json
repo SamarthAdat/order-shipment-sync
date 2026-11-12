@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node start.js",
-    "test": "node --test",
+    "test": "node --test test/*.test.js",
     "reconcile": "node src/reconcile.js",
     "replay": "node src/replay.js",
     "send-webhook": "node scripts/send-webhook.js"
