@@ -86,3 +86,13 @@ test('unknown path is 404', async () => {
   const res = await fetch(`${url}/nope`);
   assert.equal(res.status, 404);
 });
+
+test('large numeric ids are kept exactly', async () => {
+  // Bigger than Number.MAX_SAFE_INTEGER: JSON.parse alone would round both to ...500.
+  await post('{"id":820982911946154508}', { 'x-shop-webhook-id': 'w1' });
+  const res = await post('{"id":820982911946154509}', { 'x-shop-webhook-id': 'w2' });
+  assert.deepEqual(res.body, { ok: true });
+  const ids = db.prepare('SELECT id, payload FROM orders ORDER BY id').all();
+  assert.deepEqual(ids.map((o) => o.id), ['820982911946154508', '820982911946154509']);
+  assert.match(ids[0].payload, /820982911946154508/);
+});
