@@ -25,6 +25,9 @@ const schema = `
 
 function openDb(path = config.dbPath) {
   const db = new DatabaseSync(path);
+  // The service, reconcile and replay may write at the same time:
+  // wait up to 5s for the lock instead of failing at once.
+  db.exec('PRAGMA busy_timeout = 5000');
   db.exec(schema);
   return db;
 }

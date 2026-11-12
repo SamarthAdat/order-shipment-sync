@@ -12,3 +12,9 @@ test('creates tables and order id is unique', () => {
   assert.equal(insert.run().changes, 0);
   assert.equal(db.prepare('SELECT count(*) AS n FROM webhooks').get().n, 0);
 });
+
+test('waits for a busy database instead of failing at once', () => {
+  // The service, reconcile and replay can write to the same file at once.
+  const db = openDb(':memory:');
+  assert.equal(db.prepare('PRAGMA busy_timeout').get().timeout, 5000);
+});

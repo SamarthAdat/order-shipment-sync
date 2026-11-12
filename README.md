@@ -161,7 +161,7 @@ records it; if not, it puts the order back in the queue for the worker.
 
 ## Tests
 
-`npm test` runs 37 tests. They focus on what's most likely to break:
+`npm test` runs 39 tests. They focus on what's most likely to break:
 signature checks, duplicate webhooks, the courier timing out after creating
 a shipment, `429`/`5xx` retries, parking, and reconcile. Most use an
 in-memory database and a fake courier. The courier client tests run against
