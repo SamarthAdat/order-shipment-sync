@@ -169,4 +169,4 @@ the real mock courier with its randomness fixed.
 
 ## Time spent
 
-About X hours.
+About 3 hours.
