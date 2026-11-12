@@ -1,0 +1,16 @@
+{
+  "name": "order-shipment-sync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Turns orders/create webhooks into courier shipments, exactly once.",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node start.js",
+    "test": "node --test",
+    "reconcile": "node src/reconcile.js",
+    "replay": "node src/replay.js",
+    "send-webhook": "node scripts/send-webhook.js"
+  }
+}
