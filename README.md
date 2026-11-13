@@ -98,7 +98,8 @@ store --webhook--> server --saves order (status: pending)--> SQLite
 | Courier result | What happens |
 |---|---|
 | `429` | wait `Retry-After` seconds, then retry |
-| `5xx`, timeout, network error | retry after 1s, 2s, 4s, 8s (max 60s) |
+| `5xx`, network error before the POST | retry after 1s, 2s, 4s, 8s (max 60s) |
+| POST timed out or failed mid-way | wait 30s, then check again before any new POST |
 | other `4xx` | park now (retrying won't fix a bad request) |
 
 After 5 failed attempts the order is **parked** (`status = 'failed'`, with
@@ -132,6 +133,11 @@ records it; if not, it puts the order back in the queue for the worker.
   doesn't tell us whether the shipment was made. So every attempt first asks
   `GET /shipments?reference=<orderId>`. A shipment created before a timeout
   is found on the next attempt and never created twice.
+- **Wait 30s after a POST times out.** A courier can save the shipment
+  *after* our 5s timeout fires (say at 8s). If we checked again after 1s we
+  would find nothing and post a second time. So after an uncertain POST we
+  wait 30s, longer than the courier's slowest save time, before checking.
+  The cost: orders that hit a timeout ship about 30s later.
 - **Only the worker creates shipments.** Reconcile and replay never call
   `POST`; they only record a found shipment or hand the order back to the
   worker. One place creates shipments, so there's one place to get right.
@@ -161,7 +167,7 @@ records it; if not, it puts the order back in the queue for the worker.
 
 ## Tests
 
-`npm test` runs 39 tests. They focus on what's most likely to break:
+`npm test` runs 41 tests. They focus on what's most likely to break:
 signature checks, duplicate webhooks, the courier timing out after creating
 a shipment, `429`/`5xx` retries, parking, and reconcile. Most use an
 in-memory database and a fake courier. The courier client tests run against

@@ -120,3 +120,20 @@ test('other 4xx parks at once', async () => {
   assert.equal(order.status, 'failed');
   assert.equal(order.attempts, 1);
 });
+
+test('timeout after the POST waits 30s before checking again', async () => {
+  // The courier may still be saving the shipment. Checking again after 1s
+  // could find nothing and post a second time.
+  const db = openDb(':memory:');
+  addOrder(db, '1');
+  const order = await runOnce(db, fakeCourier({ create: [new Error('timeout')] }));
+  assert.equal(order.status, 'pending');
+  assert.equal(order.next_attempt_at, NOW + 30_000);
+});
+
+test('lookup failure before any POST uses normal backoff', async () => {
+  const db = openDb(':memory:');
+  addOrder(db, '1');
+  const order = await runOnce(db, fakeCourier({ findError: new Error('network down') }));
+  assert.equal(order.next_attempt_at, NOW + 1000);
+});

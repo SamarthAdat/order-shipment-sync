@@ -2,6 +2,11 @@
 
 const MAX_ATTEMPTS = 5;
 
+// After a POST times out we don't know if the courier created the shipment.
+// It may still be saving it, so wait this long before checking again.
+// Must be longer than the courier's slowest save time.
+const SETTLE_SECONDS = 30;
+
 // 1s, 2s, 4s, 8s ... capped at 60s.
 function backoffMs(attempts) {
   return Math.min(1000 * 2 ** (attempts - 1), 60000);
@@ -40,6 +45,7 @@ function retry(db, row, error, retryAfterSeconds, now) {
 
 // Never throws. Returns a short description of what happened, for logs.
 async function processOrder(db, courier, row, now = Date.now()) {
+  let posted = false;
   try {
     // Check first: an earlier attempt may have created the shipment and then
     // timed out. If so, we use it and never post again.
@@ -47,6 +53,7 @@ async function processOrder(db, courier, row, now = Date.now()) {
     if (existing.length > 0) return markShipped(db, row.id, existing[0].shipmentId, now);
 
     const order = JSON.parse(row.payload);
+    posted = true;
     const result = await courier.createShipment({
       reference: row.id,
       address: order.shipping_address,
@@ -60,9 +67,10 @@ async function processOrder(db, courier, row, now = Date.now()) {
     if (result.status >= 400 && result.status < 500) return park(db, row.id, row.attempts + 1, error, now);
     return retry(db, row, error, null, now);
   } catch (err) {
-    // Timeouts and network errors. The shipment may exist; the next
-    // attempt's check will find it.
-    return retry(db, row, err.message, null, now);
+    // Timeouts and network errors. If the POST was sent, the shipment may
+    // exist or still be saving, so give the courier time before the next
+    // attempt's check. If only the lookup failed, normal backoff is fine.
+    return retry(db, row, err.message, posted ? SETTLE_SECONDS : null, now);
   }
 }
 
